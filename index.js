@@ -76,7 +76,6 @@ async function generateNotes(pluginConfig, context) {
   );
 
   debug('version: %o', changelogContext.version);
-  debug('host: %o', changelogContext.hostname);
   debug('owner: %o', changelogContext.owner);
   debug('repository: %o', changelogContext.repository);
   debug('previousTag: %o', changelogContext.previousTag);
