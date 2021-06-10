@@ -462,6 +462,30 @@ test('Accept a Gitlab repository URL', async t => {
   );
 });
 
+test('Accept a custom AWS CodeCommit repository URL', async t => {
+  const commits = [
+    {hash: '111', message: 'fix(scope1): First fix'},
+    {hash: '222', message: 'feat(scope2): Second feature'},
+  ];
+  const changelog = await generateNotes(
+    {},
+    {
+      cwd,
+      options: {
+        repositoryUrl: 'codecommit::eu-central-1://profile@repository-name',
+      },
+      lastRelease,
+      nextRelease,
+      commits,
+    }
+  );
+
+  t.regex(changelog, /### Bug Fixes/);
+  t.regex(changelog, new RegExp(escape('* **scope1:** First fix 111')));
+  t.regex(changelog, /### Features/);
+  t.regex(changelog, new RegExp(escape('* **scope2:** Second feature 222')));
+});
+
 test('Accept a "linkCompare" option', async t => {
   const commits = [
     {hash: '111', message: 'fix(scope1): First fix\n\nResolves #10'},
