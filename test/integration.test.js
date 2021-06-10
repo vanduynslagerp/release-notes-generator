@@ -55,6 +55,7 @@ test('Set conventional-changelog-writer context', async t => {
     issue: 'issues',
     commit: 'commit',
     packageData: undefined,
+    title: undefined,
     linkReferences: undefined,
   });
 });
@@ -78,6 +79,7 @@ test('Set conventional-changelog-writer context with package.json', async t => {
     host,
     owner,
     repository,
+    title: undefined,
     previousTag: lastRelease.gitTag,
     currentTag: nextRelease.gitTag,
     linkCompare: lastRelease.gitTag,
@@ -552,6 +554,16 @@ test('Accept an "issue" option', async t => {
       )
     )
   );
+});
+
+test('Accept an "title" option', async t => {
+  const commits = [{hash: '111', message: 'fix(scope1): First fix\n\nresolve #10'}];
+  const changelog = await generateNotes(
+    {title: 'release-title'},
+    {cwd, options: {repositoryUrl: 'https://github.com/owner/repo'}, lastRelease, nextRelease, commits}
+  );
+
+  t.regex(changelog, new RegExp(escape('"release-title"')));
 });
 
 test('Ignore malformatted commits and include valid ones', async t => {
