@@ -639,3 +639,43 @@ test('ReThrow error from "conventional-changelog"', async t => {
     {message: 'Test error'}
   );
 });
+
+test('Accept a "transformCommits" function as option', async t => {
+  const commits = [
+    {hash: '111', message: 'fix: First fix'},
+    {hash: '222', message: 'fix: Second fix'},
+  ];
+  const transformCommits = commit => {
+    commit.scope = commit.hash;
+    return commit;
+  };
+
+  const pluginConfig = {transformCommits};
+  const options = {repositoryUrl};
+  const changelog = await generateNotes(pluginConfig, {cwd, options, lastRelease, nextRelease, commits});
+
+  t.regex(changelog, new RegExp(escape('* **111:** First fix ([111](https://github.com/owner/repo/commit/111))')));
+  t.regex(changelog, new RegExp(escape('* **222:** Second fix ([222](https://github.com/owner/repo/commit/222))')));
+});
+
+test('Accept a "transformCommits" string as option', async t => {
+  const commits = [
+    {hash: '111', message: 'fix: First fix'},
+    {hash: '222', message: 'fix: Second fix'},
+  ];
+  function transformCommits(commit) {
+    commit.scope = commit.hash;
+    return commit;
+  }
+
+  transformCommits['@noCallThru'] = true;
+
+  const moduleName = 'mock-transform';
+  const {generateNotes} = proxyquire('..', {[moduleName]: transformCommits});
+  const pluginConfig = {transformCommits: moduleName};
+  const options = {repositoryUrl};
+  const changelog = await generateNotes(pluginConfig, {cwd, options, lastRelease, nextRelease, commits});
+
+  t.regex(changelog, new RegExp(escape('* **111:** First fix ([111](https://github.com/owner/repo/commit/111))')));
+  t.regex(changelog, new RegExp(escape('* **222:** Second fix ([222](https://github.com/owner/repo/commit/222))')));
+});

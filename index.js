@@ -11,6 +11,26 @@ const loadChangelogConfig = require('./lib/load-changelog-config');
 const HOSTS_CONFIG = require('./lib/hosts-config');
 
 /**
+ * Get commit transformation function. A default passtru function is returned
+ * when no transform is configured.
+ *
+ * @param {Object} pluginConfig The plugin configuration.
+ * @param {Function|string} [pluginConfig.transformCommits] Function or requirable npm package with function to transform commits.
+ *
+ * @returns {Function} A function to transform commits with.
+ */
+function getTransform(pluginConfig) {
+  const passthru = c => c;
+  const {transformCommits = passthru} = pluginConfig;
+
+  if (typeof transformCommits === 'string') {
+    return require(transformCommits);
+  }
+
+  return transformCommits;
+}
+
+/**
  * Generate the changelog for all the commits in `options.commits`.
  *
  * @param {Object} pluginConfig The plugin configuration.
@@ -18,13 +38,14 @@ const HOSTS_CONFIG = require('./lib/hosts-config');
  * @param {String} pluginConfig.config Requierable npm package with a custom conventional-changelog preset
  * @param {Object} pluginConfig.parserOpts Additional `conventional-changelog-parser` options that will overwrite ones loaded by `preset` or `config`.
  * @param {Object} pluginConfig.writerOpts Additional `conventional-changelog-writer` options that will overwrite ones loaded by `preset` or `config`.
+ * @param {Function|string} [pluginConfig.transformCommits] Function or requirable npm package with function to transform commits.
  * @param {Object} context The semantic-release context.
  * @param {Array<Object>} context.commits The commits to analyze.
  * @param {Object} context.lastRelease The last release with `gitHead` corresponding to the commit hash used to make the last release and `gitTag` corresponding to the git tag associated with `gitHead`.
  * @param {Object} context.nextRelease The next release with `gitHead` corresponding to the commit hash used to make the  release, the release `version` and `gitTag` corresponding to the git tag associated with `gitHead`.
  * @param {Object} context.options.repositoryUrl The git repository URL.
  *
- * @returns {String} The changelog for all the commits in `context.commits`.
+ * @returns {Promise<String>} The changelog for all the commits in `context.commits`.
  */
 async function generateNotes(pluginConfig, context) {
   const {commits, lastRelease, nextRelease, options, cwd} = context;
@@ -41,6 +62,7 @@ async function generateNotes(pluginConfig, context) {
 
   const {issue, commit, referenceActions, issuePrefixes} =
     find(HOSTS_CONFIG, conf => conf.hostname === hostname) || HOSTS_CONFIG.default;
+  const transformCommits = getTransform(pluginConfig);
   const parsedCommits = filter(
     commits
       .filter(({message, hash}) => {
@@ -51,10 +73,12 @@ async function generateNotes(pluginConfig, context) {
 
         return true;
       })
-      .map(rawCommit => ({
-        ...rawCommit,
-        ...parser(rawCommit.message, {referenceActions, issuePrefixes, ...parserOpts}),
-      }))
+      .map(rawCommit =>
+        transformCommits({
+          ...rawCommit,
+          ...parser(rawCommit.message, {referenceActions, issuePrefixes, ...parserOpts}),
+        })
+      )
   );
   const previousTag = lastRelease.gitTag || lastRelease.gitHead;
   const currentTag = nextRelease.gitTag || nextRelease.gitHead;
